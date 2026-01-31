@@ -217,33 +217,58 @@ export function Header() {
                         <p className="text-[10px] text-slate-400 font-semibold uppercase mt-1 tracking-wider">{userType?.replace('_', ' ') || 'Invitado'}</p>
                       </div>
 
-                      <div className="py-1">
-                        <Link
-                          href={userType === 'business_owner' ? '/admin/dashboard' : '/perfil'}
-                          className="flex items-center gap-3 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 transition-colors"
-                          onClick={() => setIsUserMenuOpen(false)}
-                        >
-                          <UserCircle size={18} className="text-slate-400" />
-                          {userType === 'business_owner' ? 'Panel Admin' : 'Mi Perfil'}
-                        </Link>
+                        {/* BUSINESS OWNER MENU */}
+                        {userType === 'business_owner' ? (
+                          <>
+                            <Link
+                              href="/admin/dashboard"
+                              className="flex items-center gap-3 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 transition-colors"
+                              onClick={() => setIsUserMenuOpen(false)}
+                            >
+                              <Briefcase size={18} className="text-slate-400" />
+                              Panel de Control
+                            </Link>
 
-                        <Link
-                          href="/mis-reservas"
-                          className="flex items-center gap-3 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 transition-colors"
-                          onClick={() => setIsUserMenuOpen(false)}
-                        >
-                          <Briefcase size={18} className="text-slate-400" />
-                          Mis Reservas
-                        </Link>
+                            <Link
+                              href="/perfil/configuracion"
+                              className="flex items-center gap-3 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 transition-colors"
+                              onClick={() => setIsUserMenuOpen(false)}
+                            >
+                              <Menu size={18} className="text-slate-400" />
+                              Configuración
+                            </Link>
+                          </>
+                        ) : (
+                          /* CUSTOMER MENU */
+                          <>
+                            <Link
+                              href="/mis-reservas"
+                              className="flex items-center gap-3 px-4 py-2 text-sm font-medium text-slate-900 bg-slate-50/50 hover:bg-slate-100 transition-colors"
+                              onClick={() => setIsUserMenuOpen(false)}
+                            >
+                              <Briefcase size={18} className="text-[#00A896]" />
+                              Mis Reservas
+                            </Link>
 
-                        <Link
-                          href="/perfil/configuracion"
-                          className="flex items-center gap-3 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 transition-colors"
-                          onClick={() => setIsUserMenuOpen(false)}
-                        >
-                          <Menu size={18} className="text-slate-400" />
-                          Configuración
-                        </Link>
+                            <Link
+                              href="/perfil"
+                              className="flex items-center gap-3 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 transition-colors"
+                              onClick={() => setIsUserMenuOpen(false)}
+                            >
+                              <UserCircle size={18} className="text-slate-400" />
+                              Mi Perfil
+                            </Link>
+
+                            <Link
+                              href="/perfil/configuracion"
+                              className="flex items-center gap-3 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 transition-colors"
+                              onClick={() => setIsUserMenuOpen(false)}
+                            >
+                              <Menu size={18} className="text-slate-400" />
+                              Configuración
+                            </Link>
+                          </>
+                        )}
                       </div>
 
                       <div className="border-t border-slate-100 mt-1 pt-1 bg-slate-50/30">
@@ -260,42 +285,42 @@ export function Header() {
                       </div>
                     </div>
                   )}
-                </div>
               </div>
-            ) : (
-              // NOT LOGGED IN STATE
-              <div className="flex items-center gap-3">
-                {/* Landing Specific Button: Ofrecer Servicios */}
-                {pathname === '/' && (
-                  <Link href="/registro-negocio">
-                    <Button variant="default" className="rounded-full shadow-md hover:shadow-lg transition-all gap-2 bg-[#00A896] hover:bg-[#008f80] text-white border-transparent px-4 mr-2">
-                      <Briefcase size={18} />
-                      <span>Soy Negocio</span>
-                    </Button>
-                  </Link>
-                )}
-
-                {/* Universal Login Trigger Block: "Hola! Bienvenido" */}
-                <Link href="/login" className="flex items-center gap-3 hover:opacity-80 transition-opacity cursor-pointer group">
-                  <div className="hidden md:flex flex-col items-end leading-tight">
-                    <span className={cn("text-[10px] uppercase font-bold tracking-wider", isTextWhite ? "text-[#00A896]" : "text-[#00A896]")}>HOLA!</span>
-                    <span className={cn("text-sm font-bold", textColorClass)}>Bienvenido</span>
-                  </div>
-                  <div className={cn(
-                    "h-10 w-10 rounded-full flex items-center justify-center backdrop-blur-md transition-all border border-transparent group-hover:border-white/20",
-                    isTextWhite
-                      ? "bg-white/10 text-white shadow-[0_0_15px_rgba(255,255,255,0.1)]"
-                      : "bg-slate-100/50 text-slate-600 border-slate-200"
-                  )}>
-                    <User size={20} strokeWidth={2.5} />
-                  </div>
-                </Link>
               </div>
+          ) : (
+          // NOT LOGGED IN STATE
+          <div className="flex items-center gap-3">
+            {/* Landing Specific Button: Ofrecer Servicios */}
+            {pathname === '/' && (
+              <Link href="/registro-negocio">
+                <Button variant="default" className="rounded-full shadow-md hover:shadow-lg transition-all gap-2 bg-[#00A896] hover:bg-[#008f80] text-white border-transparent px-4 mr-2">
+                  <Briefcase size={18} />
+                  <span>Soy Negocio</span>
+                </Button>
+              </Link>
             )}
-          </div>
 
+            {/* Universal Login Trigger Block: "Hola! Bienvenido" */}
+            <Link href="/login" className="flex items-center gap-3 hover:opacity-80 transition-opacity cursor-pointer group">
+              <div className="hidden md:flex flex-col items-end leading-tight">
+                <span className={cn("text-[10px] uppercase font-bold tracking-wider", isTextWhite ? "text-[#00A896]" : "text-[#00A896]")}>HOLA!</span>
+                <span className={cn("text-sm font-bold", textColorClass)}>Bienvenido</span>
+              </div>
+              <div className={cn(
+                "h-10 w-10 rounded-full flex items-center justify-center backdrop-blur-md transition-all border border-transparent group-hover:border-white/20",
+                isTextWhite
+                  ? "bg-white/10 text-white shadow-[0_0_15px_rgba(255,255,255,0.1)]"
+                  : "bg-slate-100/50 text-slate-600 border-slate-200"
+              )}>
+                <User size={20} strokeWidth={2.5} />
+              </div>
+            </Link>
+          </div>
+            )}
         </div>
+
       </div>
+    </div>
     </header >
   )
 }
