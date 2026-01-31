@@ -1,0 +1,28 @@
+▲ Next.js 16.1.4 (Turbopack)
+- Environments: .env.local
+
+⚠ The "middleware" file convention is deprecated. Please use "proxy" instead. Learn more: https://nextjs.org/docs/messages/middleware-to-proxy
+  Creating an optimized production build ...
+✓ Compiled successfully in 17.5s
+  Skipping validation of types
+  Collecting page data using 7 workers ...
+  Generating static pages using 7 workers (0/21) ...
+[useAuth] Creando cliente de Supabase (singleton)
+[ADMIN_LOGIN_PAGE] Componente renderizado
+[ADMIN_LOGIN_PAGE] useAuth hook obtenido, login function: function
+[ADMIN_LOGIN_PAGE] Estados inicializados - loading: false error: 
+  Generating static pages using 7 workers (5/21) 
+⨯ useSearchParams() should be wrapped in a suspense boundary at page "/login". Read more: https://nextjs.org/docs/messages/missing-suspense-with-csr-bailout
+    at Q (D:\PROJECTS\onturn\onturn-app\.next\server\chunks\ssr\node_modules_next_920e7746._.js:2:2111)
+    at o (D:\PROJECTS\onturn\onturn-app\.next\server\chunks\ssr\node_modules_next_920e7746._.js:4:5284)
+    at j (D:\PROJECTS\onturn\onturn-app\.next\server\chunks\ssr\[root-of-the-server]__a3391bad._.js:1:9453)
+    at an (D:\PROJECTS\onturn\onturn-app\node_modules\next\dist\compiled\next-server\app-page-turbo.runtime.prod.js:2:84360)
+    at ai (D:\PROJECTS\onturn\onturn-app\node_modules\next\dist\compiled\next-server\app-page-turbo.runtime.prod.js:2:86179)
+    at al (D:\PROJECTS\onturn\onturn-app\node_modules\next\dist\compiled\next-server\app-page-turbo.runtime.prod.js:2:107953)
+    at as (D:\PROJECTS\onturn\onturn-app\node_modules\next\dist\compiled\next-server\app-page-turbo.runtime.prod.js:2:105368)
+    at aa (D:\PROJECTS\onturn\onturn-app\node_modules\next\dist\compiled\next-server\app-page-turbo.runtime.prod.js:2:84712)
+    at ai (D:\PROJECTS\onturn\onturn-app\node_modules\next\dist\compiled\next-server\app-page-turbo.runtime.prod.js:2:86228)
+    at ai (D:\PROJECTS\onturn\onturn-app\node_modules\next\dist\compiled\next-server\app-page-turbo.runtime.prod.js:2:104708)
+Error occurred prerendering page "/login". Read more: https://nextjs.org/docs/messages/prerender-error
+Export encountered an error on /login/page: /login, exiting the build.
+⨯ Next.js build worker exited with code: 1 and signal: null

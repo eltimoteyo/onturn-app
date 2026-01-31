@@ -1,0 +1,6 @@
+<svg width="48" height="48" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <g transform="translate(2, 10)">
+    <rect x="1.5" y="1.5" width="41" height="25" rx="12.5" stroke="#00A896" stroke-width="3" fill="white" />
+    <circle cx="31" cy="14" r="7" fill="#00A896" />
+  </g>
+</svg>
