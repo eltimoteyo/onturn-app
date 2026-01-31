@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
-import { Search, UserCircle, Briefcase, Menu, ChevronLeft, LogOut } from 'lucide-react'
+import { Search, UserCircle, Briefcase, Menu, ChevronLeft, LogOut, User } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useAuth } from '@/hooks/useAuth'
 import { Logo } from '@/components/shared/Logo'
@@ -276,13 +276,18 @@ export function Header() {
                 )}
 
                 {/* Universal Login Trigger Block: "Hola! Bienvenido" */}
-                <Link href="/login" className="flex items-center gap-2 hover:opacity-80 transition-opacity cursor-pointer">
+                <Link href="/login" className="flex items-center gap-3 hover:opacity-80 transition-opacity cursor-pointer group">
                   <div className="hidden md:flex flex-col items-end leading-tight">
-                    <span className={cn("text-[10px] uppercase font-bold opacity-70", textColorClass)}>Hola,</span>
+                    <span className={cn("text-[10px] uppercase font-bold tracking-wider", isTextWhite ? "text-[#00A896]" : "text-[#00A896]")}>HOLA!</span>
                     <span className={cn("text-sm font-bold", textColorClass)}>Bienvenido</span>
                   </div>
-                  <div className="h-9 w-9 bg-[#00A896] rounded-full flex items-center justify-center text-white shadow-md">
-                    <UserCircle size={20} />
+                  <div className={cn(
+                    "h-10 w-10 rounded-full flex items-center justify-center backdrop-blur-md transition-all border border-transparent group-hover:border-white/20",
+                    isTextWhite
+                      ? "bg-white/10 text-white shadow-[0_0_15px_rgba(255,255,255,0.1)]"
+                      : "bg-slate-100/50 text-slate-600 border-slate-200"
+                  )}>
+                    <User size={20} strokeWidth={2.5} />
                   </div>
                 </Link>
               </div>
