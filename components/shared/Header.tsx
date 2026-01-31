@@ -220,34 +220,32 @@ export function Header() {
                       <div className="py-1">
                         {/* BUSINESS OWNER MENU */}
                         {userType === 'business_owner' ? (
-                          <>
-                            <Link
-                              href="/admin/dashboard"
-                              className="flex items-center gap-3 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 transition-colors"
-                              onClick={() => setIsUserMenuOpen(false)}
-                            >
-                              <Briefcase size={18} className="text-slate-400" />
-                              Panel de Control
-                            </Link>
-
-                            <Link
-                              href="/perfil/configuracion"
-                              className="flex items-center gap-3 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 transition-colors"
-                              onClick={() => setIsUserMenuOpen(false)}
-                            >
-                              <Menu size={18} className="text-slate-400" />
-                              Configuración
-                            </Link>
-                          </>
+                          <Link
+                            href="/admin/dashboard"
+                            className="flex items-center gap-3 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 transition-colors"
+                            onClick={() => setIsUserMenuOpen(false)}
+                          >
+                            <Briefcase size={18} className="text-slate-400" />
+                            Panel de Control
+                          </Link>
                         ) : (
                           /* CUSTOMER MENU */
                           <>
                             <Link
-                              href="/mis-reservas"
-                              className="flex items-center gap-3 px-4 py-2 text-sm font-medium text-slate-900 bg-slate-50/50 hover:bg-slate-100 transition-colors"
+                              href="/reservas"
+                              className="flex items-center gap-3 px-4 py-2 text-sm font-bold text-[#00A896] bg-teal-50/50 hover:bg-teal-50 transition-colors"
                               onClick={() => setIsUserMenuOpen(false)}
                             >
-                              <Briefcase size={18} className="text-[#00A896]" />
+                              <Search size={18} className="text-[#00A896]" />
+                              Reservar Turno
+                            </Link>
+
+                            <Link
+                              href="/mis-reservas"
+                              className="flex items-center gap-3 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 transition-colors"
+                              onClick={() => setIsUserMenuOpen(false)}
+                            >
+                              <Briefcase size={18} className="text-slate-400" />
                               Mis Reservas
                             </Link>
 
@@ -258,15 +256,6 @@ export function Header() {
                             >
                               <UserCircle size={18} className="text-slate-400" />
                               Mi Perfil
-                            </Link>
-
-                            <Link
-                              href="/perfil/configuracion"
-                              className="flex items-center gap-3 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 transition-colors"
-                              onClick={() => setIsUserMenuOpen(false)}
-                            >
-                              <Menu size={18} className="text-slate-400" />
-                              Configuración
                             </Link>
                           </>
                         )}
