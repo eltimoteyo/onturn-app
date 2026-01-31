@@ -13,7 +13,7 @@ export default function Home() {
       <section className="pt-40 pb-20 px-4 text-center">
         <div className="max-w-4xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-8 duration-700">
           <div className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-blue-100 text-[#003366] rounded-full text-sm font-bold shadow-sm">
-            <Zap size={16} className="text-[#00A896]" fill="currentColor" /> Tu turno, sin llamadas, sin esperas, todo digital.
+            <Zap size={16} className="text-[#00A896]" fill="currentColor" /> Tu turno al instante, todo digital.
           </div>
           <h1 className="text-5xl md:text-7xl font-extrabold text-[#003366] tracking-tight leading-tight">
             Gestión inteligente<br />
