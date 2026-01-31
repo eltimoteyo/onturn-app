@@ -182,7 +182,7 @@ export function Header() {
                   <Link href="/registro-negocio">
                     <Button variant="default" className="rounded-full shadow-md hover:shadow-lg transition-all gap-2 bg-[#00A896] hover:bg-[#008f80] text-white border-transparent px-4 mr-2">
                       <Briefcase size={18} />
-                      <span>Ofrecer Servicios</span>
+                      <span>Soy Negocio</span>
                     </Button>
                   </Link>
                 )}
@@ -270,7 +270,7 @@ export function Header() {
                   <Link href="/registro-negocio">
                     <Button variant="default" className="rounded-full shadow-md hover:shadow-lg transition-all gap-2 bg-[#00A896] hover:bg-[#008f80] text-white border-transparent px-4 mr-2">
                       <Briefcase size={18} />
-                      <span>Ofrecer Servicios</span>
+                      <span>Soy Negocio</span>
                     </Button>
                   </Link>
                 )}
