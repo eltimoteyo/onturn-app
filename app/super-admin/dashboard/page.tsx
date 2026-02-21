@@ -310,8 +310,8 @@ export default function SuperAdminDashboardPage() {
                       <p className="font-bold text-[#003366]">{request.business_name}</p>
                       <p className="text-sm text-slate-600">{request.applicant_name} - {request.applicant_email}</p>
                     </div>
-                    <Link href={`/super-admin/solicitudes/${request.id}`}>
-                      <Button size="sm">Revisar</Button>
+                    <Link href="/super-admin/solicitudes">
+                      <Button size="sm">Gestionar</Button>
                     </Link>
                   </div>
                 ))}

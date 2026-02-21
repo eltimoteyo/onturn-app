@@ -2,12 +2,16 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { useDebounce } from 'use-debounce'
 import { useAuth } from '@/hooks/useAuth'
 import { createClient } from '@/lib/supabase/client'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Building2, Power, Menu, X, LogOut, CheckCircle, XCircle, Settings, Search } from 'lucide-react'
 import Link from 'next/link'
+import { getErrorMessage } from '@/lib/utils/errorHandler'
+import { LoadingState, PageLoading } from '@/components/shared/LoadingState'
+import { EmptyState, EmptySearchState } from '@/components/shared/EmptyState'
 
 interface Tenant {
   id: string
@@ -32,6 +36,7 @@ export default function TenantsPage() {
   const [tenants, setTenants] = useState<Tenant[]>([])
   const [loadingTenants, setLoadingTenants] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
+  const [debouncedSearchTerm] = useDebounce(searchTerm, 300)
 
   useEffect(() => {
     if (!loading && (!isAuthenticated || userType !== 'admin')) {
@@ -65,15 +70,16 @@ export default function TenantsPage() {
       if (error) throw error
       setTenants(data || [])
     } catch (error) {
-      console.error('Error al cargar tenants:', error)
+      const errorMessage = getErrorMessage(error, 'LOAD_TENANTS')
+      console.error('[TENANTS] Error al cargar:', errorMessage)
     } finally {
       setLoadingTenants(false)
     }
   }
 
   const filteredTenants = tenants.filter(tenant =>
-    tenant.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    tenant.city?.toLowerCase().includes(searchTerm.toLowerCase())
+    tenant.name.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) ||
+    tenant.city?.toLowerCase().includes(debouncedSearchTerm.toLowerCase())
   )
 
   if (loading) {

@@ -3,13 +3,17 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/hooks/useAuth'
+import { useToast } from '@/components/ui/toast'
+import { useConfirm } from '@/hooks/useConfirm'
 import { createClient } from '@/lib/supabase/client'
 import { getUserBusinesses } from '@/lib/services/admin'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { ImageUpload } from '@/components/shared/ImageUpload'
 import { Power, Menu, X, LogOut, Plus, Trash2, Edit2, ClipboardList, Star, Users, User, Settings, CheckCircle } from 'lucide-react'
 import Link from 'next/link'
+import { getErrorMessage } from '@/lib/utils/errorHandler'
 
 interface Specialist {
   id: string
@@ -35,6 +39,8 @@ interface Specialty {
 export default function EspecialistasPage() {
   const router = useRouter()
   const { isAuthenticated, isBusinessOwner, loading, user } = useAuth()
+  const { success, error: showError } = useToast()
+  const { confirm } = useConfirm()
   const supabase = createClient()
   const [business, setBusiness] = useState<any>(null)
   const [specialists, setSpecialists] = useState<Specialist[]>([])
@@ -87,7 +93,7 @@ export default function EspecialistasPage() {
       const businesses = await Promise.race([businessesPromise, timeoutPromise]) as any[]
 
       if (businesses.length === 0) {
-        alert('No tienes un establecimiento asignado.')
+        showError('No tienes un establecimiento asignado.')
         return
       }
 
@@ -120,8 +126,9 @@ export default function EspecialistasPage() {
       setSpecialties(specialtiesData?.map(s => ({ ...s, color: 'blue' })) || [])
 
     } catch (error) {
-      console.error('Error al cargar datos:', error)
-      // alert('Error al cargar la información')
+      const errorMessage = getErrorMessage(error, 'LOAD_ESPECIALISTAS_DATA')
+      console.error('[ESPECIALISTAS] Error al cargar datos:', errorMessage)
+      showError(errorMessage)
     } finally {
       setLoadingData(false)
     }
@@ -129,12 +136,12 @@ export default function EspecialistasPage() {
 
   const handleSave = async () => {
     if (!business || !formData.name.trim()) {
-      alert('Por favor ingresa un nombre válido')
+      showError('Por favor ingresa un nombre válido')
       return
     }
 
     if (!formData.specialty_id) {
-      alert('Por favor selecciona una especialidad')
+      showError('Por favor selecciona una especialidad')
       return
     }
 
@@ -155,8 +162,31 @@ export default function EspecialistasPage() {
           .eq('id', editingId)
 
         if (error) throw error
-        alert('Especialista actualizado exitosamente')
+        success('Especialista actualizado exitosamente')
       } else {
+        // Verificar límite de especialistas según el plan
+        const maxAllowed = business.max_specialists || 1
+        const currentCount = specialists.length
+        
+        if (currentCount >= maxAllowed) {
+          showError(
+            `Límite alcanzado: Tu plan ${business.plan_type?.toUpperCase() || 'FREE'} permite ${maxAllowed} especialista(s). ` +
+            `Actualiza tu plan para agregar más especialistas.`
+          )
+          setSaving(false)
+          return
+        }
+
+        // Si el negocio no está aprobado, también verificar
+        if (business.approval_status === 'pending') {
+          showError(
+            'Tu negocio aún está pendiente de aprobación. ' +
+            'Una vez aprobado, podrás agregar más especialistas según tu plan.'
+          )
+          setSaving(false)
+          return
+        }
+
         // Crear
         const { error } = await supabase
           .from('specialists')
@@ -171,16 +201,17 @@ export default function EspecialistasPage() {
           })
 
         if (error) throw error
-        alert('Especialista creado exitosamente')
+        success('Especialista creado exitosamente')
       }
 
       setShowForm(false)
       setEditingId(null)
       setFormData({ name: '', email: '', phone: '', specialty_id: '', avatar: '' })
       loadData()
-    } catch (error: any) {
-      console.error('Error al guardar especialista:', error)
-      alert('Error al guardar: ' + (error.message || 'Error desconocido'))
+    } catch (error) {
+      const errorMessage = getErrorMessage(error, 'SAVE_SPECIALIST')
+      console.error('[ESPECIALISTAS] Error al guardar:', errorMessage)
+      showError(errorMessage)
     } finally {
       setSaving(false)
     }
@@ -199,9 +230,15 @@ export default function EspecialistasPage() {
   }
 
   const handleDelete = async (id: string) => {
-    if (!confirm('¿Estás seguro de eliminar este especialista?')) {
-      return
-    }
+    const confirmed = await confirm({
+      title: '¿Eliminar especialista?',
+      description: 'Esta acción no se puede deshacer. El especialista será eliminado permanentemente del sistema.',
+      confirmText: 'Eliminar',
+      cancelText: 'Cancelar',
+      variant: 'destructive'
+    })
+    
+    if (!confirmed) return
 
     try {
       const { error } = await supabase
@@ -211,11 +248,12 @@ export default function EspecialistasPage() {
 
       if (error) throw error
 
-      alert('Especialista eliminado exitosamente')
+      success('Especialista eliminado exitosamente')
       loadData()
-    } catch (error: any) {
-      console.error('Error al eliminar especialista:', error)
-      alert('Error al eliminar: ' + (error.message || 'Error desconocido'))
+    } catch (error) {
+      const errorMessage = getErrorMessage(error, 'DELETE_SPECIALIST')
+      console.error('[ESPECIALISTAS] Error al eliminar:', errorMessage)
+      showError(errorMessage)
     }
   }
 
@@ -230,7 +268,7 @@ export default function EspecialistasPage() {
       loadData()
     } catch (error: any) {
       console.error('Error al cambiar estado:', error)
-      alert('Error al cambiar estado')
+      showError('Error al cambiar estado')
     }
   }
 
@@ -326,6 +364,23 @@ export default function EspecialistasPage() {
                       className="bg-slate-50 border-slate-200"
                     />
                   </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-bold text-slate-700 mb-2">Avatar</label>
+                  <ImageUpload
+                    currentImageUrl={formData.avatar}
+                    onImageUploaded={(url) => {
+                      setFormData({ ...formData, avatar: url })
+                      success('Avatar subido exitosamente')
+                    }}
+                    bucket="avatars"
+                    folder={editingId || 'temp'}
+                    maxSizeInMB={2}
+                    previewSize="sm"
+                    shape="circle"
+                    buttonText="Subir avatar"
+                    compressionType="avatar"
+                  />
                 </div>
                 <div className="flex gap-3 pt-4 justify-end">
                   <Button variant="ghost" onClick={() => setShowForm(false)}>Cancelar</Button>

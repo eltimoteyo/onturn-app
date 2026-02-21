@@ -2,16 +2,19 @@
 
 import React, { Suspense, useEffect, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
+import { useDebounce } from 'use-debounce'
 import { getAllBusinesses, getAllCategories, searchBusinesses } from '@/lib/services/businesses'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { Search, MapPin, Clock, LayoutGrid, Star, Shield, Scissors, Dumbbell, Briefcase } from 'lucide-react'
+import { Search, MapPin, Clock, LayoutGrid, Star, Shield, Scissors, Dumbbell, Briefcase, Building2 } from 'lucide-react'
 import Link from 'next/link'
 import { useAuth } from '@/hooks/useAuth'
 import type { Business, Category } from '@/types/business'
 import { PublicHeader } from '@/components/public/PublicHeader'
-import { Skeleton } from '@/components/ui/skeleton'
+import { LoadingState, PageLoading } from '@/components/shared/LoadingState'
+import { EmptyState, EmptySearchState } from '@/components/shared/EmptyState'
+import { getErrorMessage } from '@/lib/utils/errorHandler'
 
 // export const dynamic = 'force-dynamic' // Removed in favor of Suspense
 
@@ -22,6 +25,7 @@ function ReservasPageContent() {
   const [categories, setCategories] = useState<Category[]>([])
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState(searchParams.get('q') || '')
+  const [debouncedSearchQuery] = useDebounce(searchQuery, 500)
   const [selectedCategory, setSelectedCategory] = useState<string | null>(
     searchParams.get('categoria') || null
   )
@@ -40,7 +44,7 @@ function ReservasPageContent() {
 
   useEffect(() => {
     handleSearch()
-  }, [searchQuery, selectedCategory]) // Trigger search when query or category changes
+  }, [debouncedSearchQuery, selectedCategory]) // Trigger search when debounced query or category changes
 
   const loadData = async () => {
     try {
@@ -58,9 +62,9 @@ function ReservasPageContent() {
         setBusinesses(businessesData || [])
       }
       setCategories(categoriesData || [])
-    } catch (error: any) {
-      console.error('Error al cargar datos:', error)
-      const errorMessage = error?.message || 'Error desconocido al cargar datos'
+    } catch (error) {
+      const errorMessage = getErrorMessage(error, 'LOAD_RESERVAS_DATA')
+      console.error('[RESERVAS] Error al cargar datos:', errorMessage)
       setBusinesses([])
       setCategories([])
     } finally {
@@ -73,8 +77,9 @@ function ReservasPageContent() {
       setLoading(true)
       const data = await getAllBusinesses()
       setBusinesses(data || [])
-    } catch (error: any) {
-      console.error('Error al cargar establecimientos:', error)
+    } catch (error) {
+      const errorMessage = getErrorMessage(error, 'LOAD_BUSINESSES')
+      console.error('[RESERVAS] Error al cargar establecimientos:', errorMessage)
       setBusinesses([])
     } finally {
       setLoading(false)
@@ -82,17 +87,18 @@ function ReservasPageContent() {
   }
 
   const handleSearch = async () => {
-    if (!searchQuery.trim()) {
+    if (!debouncedSearchQuery.trim()) {
       loadBusinesses()
       return
     }
 
     try {
       setLoading(true)
-      const data = await searchBusinesses(searchQuery)
+      const data = await searchBusinesses(debouncedSearchQuery)
       setBusinesses(data || [])
-    } catch (error: any) {
-      console.error('Error en búsqueda:', error)
+    } catch (error) {
+      const errorMessage = getErrorMessage(error, 'SEARCH_BUSINESSES')
+      console.error('[RESERVAS] Error en búsqueda:', errorMessage)
       setBusinesses([])
     } finally {
       setLoading(false)
@@ -176,35 +182,34 @@ function ReservasPageContent() {
 
         {/* Lista de Establecimientos */}
         {loading ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 md:gap-8">
-            {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
-              <div key={i} className="flex flex-col h-full border rounded-xl overflow-hidden bg-white shadow-sm">
-                <Skeleton className="h-48 w-full bg-slate-200" />
-                <div className="p-5 space-y-3 flex-1">
-                  <Skeleton className="h-6 w-3/4 bg-slate-200" />
-                  <Skeleton className="h-4 w-1/2 bg-slate-100" />
-                  <div className="mt-auto pt-4 flex gap-2">
-                    <Skeleton className="h-5 w-16 rounded-full bg-slate-100" />
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
+          <LoadingState type="card" count={8} />
         ) : filteredBusinesses.length === 0 ? (
-          <Card className="border-0 shadow-lg">
-            <CardContent className="py-12 text-center">
-              <p className="text-slate-600 mb-4">
-                No se encontraron establecimientos
-              </p>
-              <Button variant="outline" onClick={() => {
+          searchQuery ? (
+            <EmptySearchState
+              searchTerm={searchQuery}
+              onClear={() => {
                 setSearchQuery('')
                 setSelectedCategory(null)
                 loadBusinesses()
-              }}>
-                Limpiar filtros
-              </Button>
-            </CardContent>
-          </Card>
+              }}
+            />
+          ) : (
+            <EmptyState
+              icon={<Building2 className="h-16 w-16" />}
+              title="No hay establecimientos"
+              description={selectedCategory 
+                ? "Aún no hay establecimientos en esta categoría. Intenta con otra categoría o explora todos."
+                : "Aún no se han registrado establecimientos. Vuelve pronto para ver novedades."
+              }
+              action={selectedCategory ? {
+                label: "Ver todos",
+                onClick: () => {
+                  setSelectedCategory(null)
+                  loadBusinesses()
+                }
+              } : undefined}
+            />
+          )
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 md:gap-8">
             {filteredBusinesses.map((business) => (
@@ -212,10 +217,13 @@ function ReservasPageContent() {
                 <Card className="p-0 overflow-hidden flex flex-col h-full group hover:shadow-2xl transition-all duration-300 border-0 shadow-lg cursor-pointer">
                   <div className="h-48 bg-slate-200 relative overflow-hidden">
                     {business.logo || (business.images && business.images[0]) ? (
-                      <img
-                        src={business.logo || business.images?.[0]}
+                      <Image
+                        src={business.logo || business.images?.[0] || ''}
                         alt={business.name}
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
+                        fill
+                        sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, (max-width: 1280px) 33vw, 25vw"
+                        className="object-cover group-hover:scale-105 transition-transform duration-700"
+                        quality={80}
                       />
                     ) : (
                       <div className="w-full h-full bg-gradient-to-br from-[#003366] to-[#00A896] flex items-center justify-center">

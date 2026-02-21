@@ -3,6 +3,8 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/hooks/useAuth'
+import { useToast } from '@/components/ui/toast'
+import { useConfirm } from '@/hooks/useConfirm'
 import { createClient } from '@/lib/supabase/client'
 import { getUserBusinesses } from '@/lib/services/admin'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -24,6 +26,8 @@ interface Specialty {
 export default function EspecialidadesPage() {
   const router = useRouter()
   const { isAuthenticated, isBusinessOwner, loading, user } = useAuth()
+  const { success, error: showError } = useToast()
+  const { confirm } = useConfirm()
   const supabase = createClient()
   const [business, setBusiness] = useState<any>(null)
   const [specialties, setSpecialties] = useState<Specialty[]>([])
@@ -58,7 +62,7 @@ export default function EspecialidadesPage() {
 
       const businesses = await getUserBusinesses(user.id)
       if (businesses.length === 0) {
-        alert('No tienes un establecimiento asignado.')
+        showError('No tienes un establecimiento asignado')
         return
       }
 
@@ -76,13 +80,13 @@ export default function EspecialidadesPage() {
       setSpecialties(data || [])
     } catch (error) {
       console.error('Error al cargar datos:', error)
-      alert('Error al cargar la información')
+      showError('Error al cargar la información')
     }
   }
 
   const handleSave = async () => {
     if (!business || !formData.name.trim()) {
-      alert('Por favor ingresa un nombre válido')
+      showError('Por favor ingresa un nombre válido')
       return
     }
 
@@ -101,7 +105,7 @@ export default function EspecialidadesPage() {
           .eq('id', editingId)
 
         if (error) throw error
-        alert('Especialidad actualizada exitosamente')
+        success('Especialidad actualizada exitosamente')
       } else {
         // Crear
         const { error } = await supabase
@@ -116,12 +120,12 @@ export default function EspecialidadesPage() {
 
         if (error) {
           if (error.code === '23505') {
-            alert('Ya existe una especialidad con ese nombre')
+            showError('Ya existe una especialidad con ese nombre')
             return
           }
           throw error
         }
-        alert('Especialidad creada exitosamente')
+        success('Especialidad creada exitosamente')
       }
 
       setShowForm(false)
@@ -130,7 +134,7 @@ export default function EspecialidadesPage() {
       loadData()
     } catch (error: any) {
       console.error('Error al guardar especialidad:', error)
-      alert('Error al guardar: ' + (error.message || 'Error desconocido'))
+      showError(error.message || 'Error al guardar')
     } finally {
       setSaving(false)
     }
@@ -147,9 +151,15 @@ export default function EspecialidadesPage() {
   }
 
   const handleDelete = async (id: string) => {
-    if (!confirm('¿Estás seguro de eliminar esta especialidad? Esto afectará a los especialistas asociados.')) {
-      return
-    }
+    const confirmed = await confirm({
+      title: '¿Eliminar especialidad?',
+      description: 'Esta especialidad será eliminada permanentemente. Los especialistas asociados deberán ser reasignados. Esta acción no se puede deshacer.',
+      confirmText: 'Eliminar',
+      cancelText: 'Cancelar',
+      variant: 'destructive'
+    })
+    
+    if (!confirmed) return
 
     try {
       // Verificar si hay especialistas asociados
@@ -162,7 +172,7 @@ export default function EspecialidadesPage() {
       if (checkError) throw checkError
 
       if (specialists && specialists.length > 0) {
-        alert('No puedes eliminar esta especialidad porque tiene especialistas asociados. Primero elimina o reasigna los especialistas.')
+        showError('No puedes eliminar esta especialidad porque tiene especialistas asociados. Primero elimina o reasigna los especialistas')
         return
       }
 
@@ -173,11 +183,11 @@ export default function EspecialidadesPage() {
 
       if (error) throw error
 
-      alert('Especialidad eliminada exitosamente')
+      success('Especialidad eliminada exitosamente')
       loadData()
     } catch (error: any) {
       console.error('Error al eliminar especialidad:', error)
-      alert('Error al eliminar: ' + (error.message || 'Error desconocido'))
+      showError(error.message || 'Error al eliminar')
     }
   }
 
@@ -192,7 +202,7 @@ export default function EspecialidadesPage() {
       loadData()
     } catch (error: any) {
       console.error('Error al cambiar estado:', error)
-      alert('Error al cambiar estado')
+      showError('Error al cambiar estado')
     }
   }
 

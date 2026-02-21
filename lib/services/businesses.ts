@@ -11,6 +11,8 @@ export async function getAllBusinesses() {
       category:categories(*)
     `)
     .eq('is_active', true)
+    .eq('approval_status', 'approved')
+    .eq('is_publicly_visible', true)
     .order('created_at', { ascending: false })
 
   if (error) {
@@ -29,6 +31,8 @@ export async function getBusinessBySlug(slug: string) {
     `)
     .eq('slug', slug)
     .eq('is_active', true)
+    .eq('approval_status', 'approved')
+    .eq('is_publicly_visible', true)
     .single()
 
   if (error) throw error
@@ -60,6 +64,8 @@ export async function getBusinessesByCategory(categorySlug: string) {
       category:categories(*)
     `)
     .eq('is_active', true)
+    .eq('approval_status', 'approved')
+    .eq('is_publicly_visible', true)
     .eq('category_id', categoryData.id)
     .order('created_at', { ascending: false })
 
@@ -78,6 +84,8 @@ export async function searchBusinesses(query: string) {
       category:categories(*)
     `)
     .eq('is_active', true)
+    .eq('approval_status', 'approved')
+    .eq('is_publicly_visible', true)
     .or(`name.ilike.%${query}%,description.ilike.%${query}%`)
     .order('created_at', { ascending: false })
 

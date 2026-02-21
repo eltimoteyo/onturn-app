@@ -8,6 +8,7 @@ export interface Specialist {
   specialty?: string
   description?: string
   avatar?: string
+  avatar_url?: string // URL de Supabase Storage
   bio?: string
   is_active: boolean
   created_at: string

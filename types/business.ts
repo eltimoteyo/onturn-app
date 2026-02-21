@@ -27,9 +27,21 @@ export interface Business {
   email?: string
   website?: string
   logo?: string
+  logo_url?: string // URL de Supabase Storage
   images?: string[]
   auto_confirm: boolean
   is_active: boolean
+  // Sistema de aprobación
+  approval_status?: 'pending' | 'approved' | 'rejected'
+  is_publicly_visible?: boolean
+  can_receive_bookings?: boolean // Se activa al confirmar email
+  approved_at?: string
+  approved_by?: string
+  rejection_reason?: string
+  // Sistema de planes
+  plan_type?: 'free' | 'basic' | 'pro' | 'enterprise'
+  max_specialists?: number
+  max_receptionists?: number
   rating?: number
   total_reviews?: number
   price_range?: string

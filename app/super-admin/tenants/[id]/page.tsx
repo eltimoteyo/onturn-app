@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import { useAuth } from '@/hooks/useAuth'
 import { createClient } from '@/lib/supabase/client'
+import { useToast } from '@/components/ui/toast'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -24,6 +25,7 @@ export default function TenantConfigPage() {
   const params = useParams()
   const tenantId = params.id as string
   const { isAuthenticated, userType, loading, user, logout } = useAuth()
+  const { success, error: showError } = useToast()
   const supabase = createClient()
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [tenant, setTenant] = useState<Tenant | null>(null)
@@ -58,7 +60,7 @@ export default function TenantConfigPage() {
       }
     } catch (error) {
       console.error('Error al cargar tenant:', error)
-      alert('Error al cargar la información del tenant')
+      showError('Error al cargar la información del tenant')
     }
   }
 
@@ -75,11 +77,11 @@ export default function TenantConfigPage() {
 
       if (error) throw error
 
-      alert('Configuración guardada exitosamente')
+      success('Configuración guardada exitosamente')
       router.push('/super-admin/tenants')
     } catch (error: any) {
       console.error('Error al guardar configuración:', error)
-      alert('Error al guardar: ' + (error.message || 'Error desconocido'))
+      showError('Error al guardar: ' + (error.message || 'Error desconocido'))
     } finally {
       setSaving(false)
     }

@@ -5,6 +5,7 @@ import { useRouter, useParams } from 'next/navigation'
 import { useAuth } from '@/hooks/useAuth'
 import { getAppointmentById } from '@/lib/services/appointments'
 import { updateAppointmentStatus } from '@/lib/services/admin'
+import { useToast } from '@/components/ui/toast'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -26,7 +27,7 @@ import {
 } from 'lucide-react'
 import Link from 'next/link'
 import { format } from 'date-fns'
-import es from 'date-fns/locale/es'
+import { es } from 'date-fns/locale'
 import type { AppointmentWithRelations } from '@/types/appointment'
 
 export default function AdminAppointmentDetailPage() {
@@ -34,6 +35,7 @@ export default function AdminAppointmentDetailPage() {
   const params = useParams()
   const appointmentId = params.id as string
   const { user, isAuthenticated, isBusinessOwner, loading: authLoading } = useAuth()
+  const { success, error: showError } = useToast()
   const [appointment, setAppointment] = useState<AppointmentWithRelations | null>(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -71,7 +73,7 @@ export default function AdminAppointmentDetailPage() {
       })
     } catch (error: any) {
       console.error('Error al cargar reserva:', error)
-      alert('Error al cargar la reserva')
+      showError('Error al cargar la reserva')
     } finally {
       setLoading(false)
     }
@@ -85,7 +87,7 @@ export default function AdminAppointmentDetailPage() {
       loadAppointment()
     } catch (error) {
       console.error('Error al actualizar estado:', error)
-      alert('Error al actualizar el estado')
+      showError('Error al actualizar el estado')
     }
   }
 
@@ -115,10 +117,10 @@ export default function AdminAppointmentDetailPage() {
       }
 
       loadAppointment()
-      alert('Resultado guardado exitosamente')
+      success('Resultado guardado exitosamente')
     } catch (error: any) {
       console.error('Error al guardar resultado:', error)
-      alert('Error al guardar el resultado')
+      showError('Error al guardar el resultado')
     } finally {
       setSaving(false)
     }

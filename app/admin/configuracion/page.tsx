@@ -3,11 +3,13 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/hooks/useAuth'
+import { useToast } from '@/components/ui/toast'
 import { createClient } from '@/lib/supabase/client'
 import { getUserBusinesses } from '@/lib/services/admin'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { ImageUpload } from '@/components/shared/ImageUpload'
 import { Building, Clock, MapPin, Power, Menu, X, LogOut, Save, User, Settings, CheckCircle, AlertCircle, Building2, Star } from 'lucide-react'
 import Link from 'next/link'
 import type { Business, BusinessHours } from '@/types/business'
@@ -25,6 +27,7 @@ const DAYS_OF_WEEK = [
 export default function ConfiguracionPage() {
   const router = useRouter()
   const { isAuthenticated, isBusinessOwner, loading, user } = useAuth()
+  const { success, error: showError } = useToast()
   const supabase = createClient()
   const [business, setBusiness] = useState<Business | null>(null)
   const [businessHours, setBusinessHours] = useState<BusinessHours[]>([])
@@ -68,7 +71,7 @@ export default function ConfiguracionPage() {
 
       const businesses = await getUserBusinesses(user.id)
       if (businesses.length === 0) {
-        alert('No tienes un establecimiento asignado. Contacta al administrador.')
+        showError('No tienes un establecimiento asignado', 'Contacta al administrador.')
         return
       }
 
@@ -103,19 +106,23 @@ export default function ConfiguracionPage() {
       setHours(hoursMap)
       setBusinessHours(hoursData || [])
 
-      // Cargar configuracion (settings)
-      const { data: settingsData } = await supabase
-        .from('business_settings')
-        .select('slot_duration')
-        .eq('business_id', currentBusiness.id)
-        .single()
+      // Cargar configuracion (settings) - opcional ya que la tabla puede no existir
+      try {
+        const { data: settingsData, error: settingsError } = await supabase
+          .from('business_settings')
+          .select('slot_duration')
+          .eq('business_id', currentBusiness.id)
+          .maybeSingle()
 
-      if (settingsData) {
-        setSlotDuration(settingsData.slot_duration?.toString() || '30')
+        if (!settingsError && settingsData) {
+          setSlotDuration(settingsData.slot_duration?.toString() || '30')
+        }
+      } catch (err) {
+        console.warn('business_settings table not available, using defaults')
       }
     } catch (error) {
       console.error('Error al cargar establecimiento:', error)
-      alert('Error al cargar la información del establecimiento')
+      showError('Error al cargar la información del establecimiento')
     } finally {
       setLoadingData(false)
     }
@@ -178,36 +185,40 @@ export default function ConfiguracionPage() {
         }
       }
 
-      // 4. Actualizar/Crear Configuración (Slot Duration)
-      const { data: existingSettings } = await supabase
-        .from('business_settings')
-        .select('id')
-        .eq('business_id', business.id)
-        .single()
-
-      if (existingSettings) {
-        const { error } = await supabase
+      // 4. Actualizar/Crear Configuración (Slot Duration) - opcional
+      try {
+        const { data: existingSettings } = await supabase
           .from('business_settings')
-          .update({ slot_duration: parseInt(slotDuration) })
+          .select('id')
           .eq('business_id', business.id)
-        if (error) throw error
-      } else {
-        const { error } = await supabase
-          .from('business_settings')
-          .insert({
-            business_id: business.id,
-            slot_duration: parseInt(slotDuration),
-            advance_booking_days: 30, // Defaults
-            reminder_hours: 24
-          })
-        if (error) throw error
+          .maybeSingle()
+
+        if (existingSettings) {
+          const { error } = await supabase
+            .from('business_settings')
+            .update({ slot_duration: parseInt(slotDuration) })
+            .eq('business_id', business.id)
+          if (error) throw error
+        } else {
+          const { error } = await supabase
+            .from('business_settings')
+            .insert({
+              business_id: business.id,
+              slot_duration: parseInt(slotDuration),
+              advance_booking_days: 30, // Defaults
+              reminder_hours: 24
+            })
+          if (error) throw error
+        }
+      } catch (settingsError) {
+        console.warn('business_settings not available, skipping:', settingsError)
       }
 
-      alert('Configuración guardada exitosamente')
+      success('Configuración guardada exitosamente')
       loadBusiness()
     } catch (error: any) {
       console.error('Error al guardar configuración:', error)
-      alert('Error al guardar: ' + (error.message || 'Error desconocido'))
+      showError('Error al guardar', error.message || 'Error desconocido')
     } finally {
       setSaving(false)
     }
@@ -248,6 +259,40 @@ export default function ConfiguracionPage() {
         </header>
 
         <div className="space-y-6 max-w-4xl animate-in fade-in">
+
+          {/* Card: Logo */}
+          <Card className="border border-slate-200 shadow-sm rounded-xl overflow-hidden">
+            <CardHeader className="bg-white border-b border-slate-100 p-6">
+              <CardTitle className="flex items-center gap-2 text-[#003366] text-lg font-bold">
+                <Building2 size={20} className="text-[#00A896]" /> Logo del Negocio
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-6 bg-white">
+              <ImageUpload
+                currentImageUrl={business?.logo_url}
+                onImageUploaded={async (url) => {
+                  if (!business) return
+                  const { error } = await supabase
+                    .from('businesses')
+                    .update({ logo_url: url })
+                    .eq('id', business.id)
+                  
+                  if (!error) {
+                    setBusiness({ ...business, logo_url: url })
+                    success('Logo actualizado exitosamente')
+                  } else {
+                    showError('Error al actualizar el logo')
+                  }
+                }}
+                bucket="business-logos"
+                folder={business?.id}
+                maxSizeInMB={3}
+                previewSize="lg"
+                buttonText="Cambiar logo"
+                compressionType="logo"
+              />
+            </CardContent>
+          </Card>
 
           {/* Card: Datos */}
           <Card className="border border-slate-200 shadow-sm rounded-xl overflow-hidden">

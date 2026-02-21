@@ -3,6 +3,8 @@
 import React, { Suspense, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
+import { useToast } from '@/components/ui/toast'
+import { registroSchema, type RegistroInput } from '@/lib/schemas'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -13,6 +15,7 @@ function RegistroForm() {
     const searchParams = useSearchParams()
     const redirect = searchParams.get('redirect') || '/reservas'
     const supabase = createClient()
+    const { success, error: showError } = useToast()
 
     const [fullName, setFullName] = useState('')
     const [email, setEmail] = useState('')
@@ -25,14 +28,25 @@ function RegistroForm() {
         setLoading(true)
         setError('')
 
+        // Validar con Zod
+        const validation = registroSchema.safeParse({ fullName, email, password })
+        
+        if (!validation.success) {
+            const firstError = validation.error.errors[0]
+            setError(firstError.message)
+            setLoading(false)
+            return
+        }
+
         try {
-            // 1. Crear usuario en Auth
+            // 1. Crear usuario en Auth con metadata
             const { data: authData, error: authError } = await supabase.auth.signUp({
                 email,
                 password,
                 options: {
                     data: {
                         full_name: fullName,
+                        role: 'customer', // El trigger usará este rol
                     },
                 },
             })
@@ -40,24 +54,12 @@ function RegistroForm() {
             if (authError) throw authError
             if (!authData.user) throw new Error('No se pudo crear el usuario')
 
-            // 2. Crear perfil en tabla profiles
-            const { error: profileError } = await supabase
-                .from('profiles')
-                .insert({
-                    id: authData.user.id,
-                    full_name: fullName,
-                    role: 'customer', // Rol por defecto
-                    email: email, // Guardamos email en profile tambien por conveniencia
-                })
-
-            if (profileError) {
-                // Si falla el perfil, podríamos intentar borrar el usuario auth o ignorarlo si es duplicado
-                console.error('Error creando perfil:', profileError)
-                // No lanzamos error fatal si el usuario auth se creó, para no bloquear el login
-            }
+            // 2. El perfil se crea AUTOMÁTICAMENTE por el trigger on_auth_user_created
+            // Esperar a que el trigger complete la creación del perfil
+            await new Promise(resolve => setTimeout(resolve, 500))
 
             // Login exitoso y redirección
-            alert('Cuenta creada exitosamente. Bienvenido!')
+            success('Cuenta creada exitosamente. Bienvenido!')
             router.push(redirect)
 
         } catch (err: any) {

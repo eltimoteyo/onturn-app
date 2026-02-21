@@ -3,17 +3,22 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/hooks/useAuth'
+import { useToast } from '@/components/ui/toast'
 import { getProfile, updateProfile, updatePassword } from '@/lib/services/profile'
 import { PublicHeader } from '@/components/public/PublicHeader'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
+import { ImageUpload } from '@/components/shared/ImageUpload'
 import { User, Lock, AlertCircle, CheckCircle } from 'lucide-react'
 import type { Profile } from '@/types/user'
+import { createClient } from '@/lib/supabase/client'
 
 export default function ProfilePage() {
     const router = useRouter()
     const { user, isAuthenticated, loading: authLoading } = useAuth()
+    const { success, error: showError } = useToast()
+    const supabase = createClient()
 
     const [profile, setProfile] = useState<Profile | null>(null)
     const [loading, setLoading] = useState(true)
@@ -187,6 +192,34 @@ export default function ProfilePage() {
                                             onChange={e => setFormData({ ...formData, phone: e.target.value })}
                                             placeholder="+51 999 999 999"
                                             className="h-12"
+                                        />
+                                    </div>
+
+                                    <div className="space-y-2">
+                                        <label className="text-sm font-medium text-slate-700">Foto de Perfil</label>
+                                        <ImageUpload
+                                            currentImageUrl={profile?.avatar_url}
+                                            onImageUploaded={async (url) => {
+                                                if (!user?.id) return
+                                                const { error } = await supabase
+                                                    .from('profiles')
+                                                    .update({ avatar_url: url })
+                                                    .eq('id', user.id)
+                                                
+                                                if (!error) {
+                                                    setProfile(prev => prev ? { ...prev, avatar_url: url } : null)
+                                                    success('Foto de perfil actualizada exitosamente')
+                                                } else {
+                                                    showError('Error al actualizar la foto de perfil')
+                                                }
+                                            }}
+                                            bucket="avatars"
+                                            folder={user?.id}
+                                            maxSizeInMB={2}
+                                            previewSize="md"
+                                            shape="circle"
+                                            buttonText="Cambiar foto"
+                                            compressionType="avatar"
                                         />
                                     </div>
 

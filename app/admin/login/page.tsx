@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/hooks/useAuth'
+import { loginSchema, type LoginInput } from '@/lib/schemas'
 import { Button } from '@/components/ui/button'
 import { User, Mail, Lock } from 'lucide-react'
 import Link from 'next/link'
@@ -26,6 +27,16 @@ export default function AdminLoginPage() {
     e.preventDefault()
     setLoading(true)
     setError('')
+
+    // Validar con Zod
+    const validation = loginSchema.safeParse({ email, password })
+    
+    if (!validation.success) {
+      const firstError = validation.error.errors[0]
+      setError(firstError.message)
+      setLoading(false)
+      return
+    }
 
     try {
       await login(email, password, '/admin/dashboard')

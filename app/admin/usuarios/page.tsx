@@ -3,6 +3,8 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/hooks/useAuth'
+import { useToast } from '@/components/ui/toast'
+import { useConfirm } from '@/hooks/useConfirm'
 import { createClient } from '@/lib/supabase/client'
 import { getUserBusinesses } from '@/lib/services/admin'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -35,6 +37,8 @@ interface Specialty {
 export default function UsuariosPage() {
   const router = useRouter()
   const { isAuthenticated, isBusinessOwner, loading, user } = useAuth()
+  const { success, error: showError } = useToast()
+  const { confirm } = useConfirm()
   const supabase = createClient()
   const [business, setBusiness] = useState<any>(null)
   const [tenantUsers, setTenantUsers] = useState<TenantUser[]>([])
@@ -69,7 +73,7 @@ export default function UsuariosPage() {
 
       const businesses = await getUserBusinesses(user.id)
       if (businesses.length === 0) {
-        alert('No tienes un establecimiento asignado.')
+        showError('No tienes un establecimiento asignado')
         return
       }
 
@@ -119,23 +123,23 @@ export default function UsuariosPage() {
       setSpecialties(specialtiesData || [])
     } catch (error) {
       console.error('Error al cargar datos:', error)
-      alert('Error al cargar la información')
+      showError('Error al cargar la información')
     }
   }
 
   const handleAddUser = async () => {
     if (!business || !newUserEmail) {
-      alert('Por favor ingresa un email válido')
+      showError('Por favor ingresa un email válido')
       return
     }
 
     if (currentUsers >= maxUsers) {
-      alert(`Has alcanzado el límite de ${maxUsers} usuarios. Contacta al administrador para aumentar el límite.`)
+      showError(`Has alcanzado el límite de ${maxUsers} usuarios. Contacta al administrador para aumentar el límite`)
       return
     }
 
     if (newUserRole === 'specialist' && !newUserSpecialtyId) {
-      alert('Por favor selecciona una especialidad para el especialista')
+      showError('Por favor selecciona una especialidad para el especialista')
       return
     }
 
@@ -150,14 +154,14 @@ export default function UsuariosPage() {
         .single()
 
       if (profilesError || !profilesData) {
-        alert('Usuario no encontrado. El usuario debe estar registrado primero.')
+        showError('Usuario no encontrado. El usuario debe estar registrado primero')
         return
       }
 
       // Verificar que no esté ya agregado
       const existing = tenantUsers.find(tu => tu.user_id === profilesData.id)
       if (existing) {
-        alert('Este usuario ya está agregado al tenant')
+        showError('Este usuario ya está agregado al tenant')
         return
       }
 
@@ -182,23 +186,29 @@ export default function UsuariosPage() {
           .eq('id', profilesData.id)
       }
 
-      alert('Usuario agregado exitosamente')
+      success('Usuario agregado exitosamente')
       setNewUserEmail('')
       setNewUserSpecialtyId('')
       setShowAddForm(false)
       loadData()
     } catch (error: any) {
       console.error('Error al agregar usuario:', error)
-      alert('Error al agregar usuario: ' + (error.message || 'Error desconocido'))
+      showError(error.message || 'Error al agregar usuario')
     } finally {
       setAddingUser(false)
     }
   }
 
   const handleRemoveUser = async (userId: string) => {
-    if (!confirm('¿Estás seguro de eliminar este usuario del tenant?')) {
-      return
-    }
+    const confirmed = await confirm({
+      title: '¿Eliminar usuario?',
+      description: 'Este usuario perderá acceso al establecimiento. Esta acción no se puede deshacer.',
+      confirmText: 'Eliminar',
+      cancelText: 'Cancelar',
+      variant: 'destructive'
+    })
+    
+    if (!confirmed) return
 
     try {
       const { error } = await supabase
@@ -208,11 +218,11 @@ export default function UsuariosPage() {
 
       if (error) throw error
 
-      alert('Usuario eliminado exitosamente')
+      success('Usuario eliminado exitosamente')
       loadData()
     } catch (error: any) {
       console.error('Error al eliminar usuario:', error)
-      alert('Error al eliminar usuario: ' + (error.message || 'Error desconocido'))
+      showError(error.message ||'Error al eliminar usuario')
     }
   }
 

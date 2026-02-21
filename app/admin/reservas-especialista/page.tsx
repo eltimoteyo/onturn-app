@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/hooks/useAuth'
 import { createClient } from '@/lib/supabase/client'
+import { useToast } from '@/components/ui/toast'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Power, Menu, X, LogOut, ClipboardList, Clock, FileText, Upload } from 'lucide-react'
@@ -37,6 +38,7 @@ export default function EspecialistaReservasPage() {
   const router = useRouter()
   const { isAuthenticated, userType, loading, user } = useAuth()
   const supabase = createClient()
+  const { success, error: showError } = useToast()
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [appointments, setAppointments] = useState<Appointment[]>([])
   const [specialtyId, setSpecialtyId] = useState<string | null>(null)
@@ -72,7 +74,7 @@ export default function EspecialistaReservasPage() {
         .single()
 
       if (tenantUserError || !tenantUser || !tenantUser.specialty_id) {
-        alert('No tienes una especialidad asignada. Contacta al administrador.')
+        showError('No tienes una especialidad asignada. Contacta al administrador')
         return
       }
 
@@ -129,7 +131,7 @@ export default function EspecialistaReservasPage() {
       setAppointments(data || [])
     } catch (error) {
       console.error('Error al cargar reservas:', error)
-      alert('Error al cargar las reservas')
+      showError('Error al cargar las reservas')
     }
   }
 
@@ -144,7 +146,7 @@ export default function EspecialistaReservasPage() {
       loadSpecialtyAndAppointments()
     } catch (error: any) {
       console.error('Error al iniciar atención:', error)
-      alert('Error al iniciar atención')
+      showError('Error al iniciar atención')
     }
   }
 
@@ -164,7 +166,7 @@ export default function EspecialistaReservasPage() {
 
       if (error) throw error
 
-      alert('Reserva completada exitosamente')
+      success('Reserva completada exitosamente')
       setShowDetailsModal(false)
       setSelectedAppointment(null)
       setResultNotes('')
@@ -172,7 +174,7 @@ export default function EspecialistaReservasPage() {
       loadSpecialtyAndAppointments()
     } catch (error: any) {
       console.error('Error al completar reserva:', error)
-      alert('Error al completar reserva')
+      showError('Error al completar reserva')
     } finally {
       setSaving(false)
     }
@@ -185,7 +187,7 @@ export default function EspecialistaReservasPage() {
       setPrescription(appointment.prescription || '')
       setShowDetailsModal(true)
     } else {
-      alert('Solo puedes ver detalles de reservas en atención o completadas')
+      showError('Solo puedes ver detalles de reservas en atención o completadas')
     }
   }
 

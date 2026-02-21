@@ -3,7 +3,9 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/hooks/useAuth'
+import { useConfirm } from '@/hooks/useConfirm'
 import { getAllBusinessAppointments, updateAppointmentStatus } from '@/lib/services/admin'
+import { useToast } from '@/components/ui/toast'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -17,6 +19,8 @@ import type { AppointmentWithRelations } from '@/types/appointment'
 export default function AdminReservasPage() {
   const router = useRouter()
   const { user, isAuthenticated, isBusinessOwner, loading: authLoading } = useAuth()
+  const { confirm } = useConfirm()
+  const { success, error: showError } = useToast()
   const [appointments, setAppointments] = useState<AppointmentWithRelations[]>([])
   const [loading, setLoading] = useState(true)
   const [statusFilter, setStatusFilter] = useState<string>('all')
@@ -55,19 +59,27 @@ export default function AdminReservasPage() {
       loadAppointments()
     } catch (error) {
       console.error('Error al aprobar reserva:', error)
-      alert('Error al aprobar la reserva')
+      showError('Error al aprobar la reserva')
     }
   }
 
   const handleReject = async (appointmentId: string) => {
-    if (!confirm('¿Estás seguro de rechazar esta reserva?')) return
+    const confirmed = await confirm({
+      title: '¿Rechazar reserva?',
+      description: 'Se notificará al cliente que su reserva fue rechazada. Esta acción no se puede deshacer.',
+      confirmText: 'Rechazar',
+      cancelText: 'Cancelar',
+      variant: 'destructive'
+    })
+    
+    if (!confirmed) return
 
     try {
       await updateAppointmentStatus(appointmentId, 'cancelled')
       loadAppointments()
     } catch (error) {
       console.error('Error al rechazar reserva:', error)
-      alert('Error al rechazar la reserva')
+      showError('Error al rechazar la reserva')
     }
   }
 

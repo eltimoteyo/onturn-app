@@ -5,8 +5,11 @@ import { useRouter } from 'next/navigation'
 import { useAuth } from '@/hooks/useAuth'
 import { createClient } from '@/lib/supabase/client'
 import { getUserBusinesses, getBusinessAppointments, updateAppointmentStatus } from '@/lib/services/admin'
+import { useToast } from '@/components/ui/toast'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
+import { ApprovalBanner, UpgradeBanner } from '@/components/admin/ApprovalBanner'
+import EmailConfirmationBanner from '@/components/admin/EmailConfirmationBanner'
 import { Power, Menu, X, LogOut, ClipboardList, User, Users, Settings, CheckCircle, ArrowLeft, Stethoscope, FileText, Paperclip, Building2, Star } from 'lucide-react'
 import Link from 'next/link'
 import type { Business } from '@/types/business'
@@ -30,6 +33,7 @@ export default function AdminDashboardPage() {
   const router = useRouter()
   const { isAuthenticated, isBusinessOwner, isSpecialist, loading, user } = useAuth()
   const supabase = createClient()
+  const { success, error: showError } = useToast()
   const [loadingData, setLoadingData] = useState(true)
 
   const [business, setBusiness] = useState<Business | null>(null)
@@ -56,6 +60,28 @@ export default function AdminDashboardPage() {
       if (isBusinessOwner || isSpecialist) {
         console.log('[DASHBOARD] Usuario autorizado, cargando dashboard...')
         loadDashboardData()
+        
+        // Suscripción en tiempo real para cambios en el negocio
+        const businessSubscription = supabase
+          .channel('business-changes')
+          .on(
+            'postgres_changes',
+            {
+              event: 'UPDATE',
+              schema: 'public',
+              table: 'businesses',
+              filter: `owner_id=eq.${user.id}`
+            },
+            (payload) => {
+              console.log('[DASHBOARD] Negocio actualizado:', payload.new)
+              setBusiness(payload.new as Business)
+            }
+          )
+          .subscribe()
+        
+        return () => {
+          businessSubscription.unsubscribe()
+        }
       } else {
         console.log('[DASHBOARD] Rol no autorizado. Redirigiendo a /reservas')
         router.push('/reservas')
@@ -77,7 +103,7 @@ export default function AdminDashboardPage() {
         currentBusinessId = businesses[0].id
       } else {
         if (isBusinessOwner) {
-          alert('No tienes un negocio registrado.')
+          showError('No tienes un negocio registrado')
           setLoadingData(false)
           return
         }
@@ -101,7 +127,7 @@ export default function AdminDashboardPage() {
       await updateAppointmentStatus(id, newStatus)
     } catch (error) {
       console.error('Error actualizando estado:', error)
-      alert('Error al actualizar el estado')
+      showError('Error al actualizar el estado')
       loadDashboardData()
     }
   }
@@ -125,7 +151,7 @@ export default function AdminDashboardPage() {
       setSelectedBooking(null)
     } catch (error) {
       console.error('Error finalizando consulta:', error)
-      alert('Error al guardar resultados')
+      showError('Error al guardar resultados')
     }
   }
 
@@ -163,6 +189,23 @@ export default function AdminDashboardPage() {
             </h2>
           </div>
         </header>
+
+        {/* Banners de confirmación de email, aprobación y upgrade */}
+        {user && (
+          <div className="max-w-5xl">
+            <EmailConfirmationBanner 
+              userEmail={user.email || ''} 
+              emailConfirmed={!!user.email_confirmed_at} 
+            />
+          </div>
+        )}
+        
+        {business && (
+          <div className="max-w-5xl">
+            <ApprovalBanner business={business} />
+            <UpgradeBanner business={business} />
+          </div>
+        )}
 
         <div className="space-y-6 animate-in fade-in">
           <div className="space-y-4 max-w-5xl">

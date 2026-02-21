@@ -3,10 +3,12 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/hooks/useAuth'
+import { useConfirm } from '@/hooks/useConfirm'
 import { createClient } from '@/lib/supabase/client'
+import { useToast } from '@/components/ui/toast'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Clock, Power, Menu, X, LogOut, CheckCircle, XCircle, Eye } from 'lucide-react'
+import { Clock, Power, Menu, X, LogOut, CheckCircle, XCircle } from 'lucide-react'
 import Link from 'next/link'
 
 interface RegistrationRequest {
@@ -35,6 +37,8 @@ interface RegistrationRequest {
 export default function SolicitudesPage() {
   const router = useRouter()
   const { isAuthenticated, userType, loading, user, logout } = useAuth()
+  const { confirm } = useConfirm()
+  const { success, error: showError } = useToast()
   const supabase = createClient()
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [requests, setRequests] = useState<RegistrationRequest[]>([])
@@ -79,9 +83,15 @@ export default function SolicitudesPage() {
   }
 
   const handleApprove = async (requestId: string) => {
-    if (!confirm('¿Estás seguro de aprobar esta solicitud? Se creará el tenant y se asignará el usuario admin.')) {
-      return
-    }
+    const confirmed = await confirm({
+      title: '¿Aprobar solicitud?',
+      description: 'El negocio quedará visible públicamente y el solicitante podrá gestionar su establecimiento. Esta acción no se puede deshacer fácilmente.',
+      confirmText: 'Aprobar',
+      cancelText: 'Cancelar',
+      variant: 'default'
+    })
+    
+    if (!confirmed) return
 
     try {
       // Obtener la solicitud completa
@@ -93,36 +103,36 @@ export default function SolicitudesPage() {
 
       if (fetchError || !request) throw fetchError || new Error('Solicitud no encontrada')
 
-      // Crear el tenant (business)
-      const slug = request.business_name
-        .toLowerCase()
-        .normalize('NFD')
-        .replace(/[\u0300-\u036f]/g, '')
-        .replace(/[^a-z0-9]+/g, '-')
-        .replace(/^-+|-+$/g, '')
-
-      // Verificar que el slug sea único
-      let finalSlug = slug
-      let counter = 1
-      while (true) {
-        const { data: existing } = await supabase
-          .from('businesses')
-          .select('id')
-          .eq('slug', finalSlug)
-          .single()
-
-        if (!existing) break
-        finalSlug = `${slug}-${counter}`
-        counter++
+      if (!request.applicant_user_id) {
+        throw new Error('La solicitud no tiene un usuario asociado')
       }
 
+      // Buscar el negocio creado por este usuario
       const { data: business, error: businessError } = await supabase
         .from('businesses')
-        .insert({
-          owner_id: request.applicant_user_id,
-          registration_request_id: requestId,
+        .select('*')
+        .eq('owner_id', request.applicant_user_id)
+        .single()
+
+      if (businessError || !business) {
+        throw new Error('No se encontró el negocio asociado a esta solicitud')
+      }
+
+      // Actualizar el negocio para aprobarlo y hacerlo visible
+      console.log('[APPROVE] Intentando actualizar negocio:', {
+        businessId: business.id,
+        ownerId: request.applicant_user_id,
+        currentStatus: business.approval_status
+      })
+
+      const { data: updateResult, error: updateBusinessError } = await supabase
+        .from('businesses')
+        .update({
+          approval_status: 'approved',
+          is_publicly_visible: true,
+          can_receive_bookings: true,
+          // Asegurarse que tenga los datos de la solicitud
           name: request.business_name,
-          slug: finalSlug,
           description: request.business_description,
           category_id: request.business_category_id,
           address: request.business_address,
@@ -130,20 +140,20 @@ export default function SolicitudesPage() {
           state: request.business_state,
           phone: request.business_phone,
           email: request.business_email || request.applicant_email,
-          is_active: true,
-          max_users: 5, // Default
         })
+        .eq('id', business.id)
         .select()
-        .single()
 
-      if (businessError) throw businessError
+      console.log('[APPROVE] Resultado del UPDATE:', {
+        success: !updateBusinessError,
+        error: updateBusinessError,
+        updatedData: updateResult
+      })
 
-      // Actualizar el perfil del usuario a business_owner
-      if (request.applicant_user_id) {
-        await supabase
-          .from('profiles')
-          .update({ role: 'business_owner' })
-          .eq('id', request.applicant_user_id)
+      if (updateBusinessError) throw updateBusinessError
+
+      if (!updateResult || updateResult.length === 0) {
+        throw new Error('El UPDATE no afectó ninguna fila. Posible problema de permisos RLS.')
       }
 
       // Actualizar la solicitud como aprobada
@@ -158,11 +168,11 @@ export default function SolicitudesPage() {
 
       if (updateError) throw updateError
 
-      alert('Solicitud aprobada exitosamente. El tenant ha sido creado.')
+      success('Solicitud aprobada. El negocio ahora es visible públicamente')
       loadRequests()
     } catch (error: any) {
       console.error('Error al aprobar solicitud:', error)
-      alert('Error al aprobar solicitud: ' + (error.message || 'Error desconocido'))
+      showError('Error: ' + (error.message || 'Error desconocido'))
     }
   }
 
@@ -171,6 +181,35 @@ export default function SolicitudesPage() {
     if (!reason) return
 
     try {
+      // Obtener la solicitud
+      const { data: request, error: fetchError } = await supabase
+        .from('tenant_registration_requests')
+        .select('*')
+        .eq('id', requestId)
+        .single()
+
+      if (fetchError || !request) throw fetchError || new Error('Solicitud no encontrada')
+
+      // Actualizar el negocio (si existe) a rechazado
+      if (request.applicant_user_id) {
+        const { data: business } = await supabase
+          .from('businesses')
+          .select('id')
+          .eq('owner_id', request.applicant_user_id)
+          .single()
+
+        if (business) {
+          await supabase
+            .from('businesses')
+            .update({
+              approval_status: 'rejected',
+              is_publicly_visible: false,
+            })
+            .eq('id', business.id)
+        }
+      }
+
+      // Actualizar la solicitud
       const { error } = await supabase
         .from('tenant_registration_requests')
         .update({
@@ -183,11 +222,11 @@ export default function SolicitudesPage() {
 
       if (error) throw error
 
-      alert('Solicitud rechazada.')
+      success('Solicitud rechazada')
       loadRequests()
     } catch (error: any) {
       console.error('Error al rechazar solicitud:', error)
-      alert('Error al rechazar solicitud: ' + (error.message || 'Error desconocido'))
+      showError('Error al rechazar solicitud: ' + (error.message || 'Error desconocido'))
     }
   }
 
@@ -377,11 +416,6 @@ export default function SolicitudesPage() {
                         </Button>
                       </>
                     )}
-                    <Link href={`/super-admin/solicitudes/${request.id}`}>
-                      <Button variant="outline" size="sm">
-                        <Eye size={16} className="mr-2" /> Ver Detalles
-                      </Button>
-                    </Link>
                   </div>
                   <p className="text-xs text-slate-500 mt-3">
                     Creada: {new Date(request.created_at).toLocaleString('es-ES')}

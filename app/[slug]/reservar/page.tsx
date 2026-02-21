@@ -7,6 +7,7 @@ import { getBusinessBySlug, getBusinessHours } from '@/lib/services/businesses'
 import { getSpecialistsByBusiness } from '@/lib/services/specialists'
 import { getSpecialtiesByBusiness, type Specialty } from '@/lib/services/specialties'
 import { createAppointment, getAvailableSlots } from '@/lib/services/appointments'
+import { useToast } from '@/components/ui/toast'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -27,6 +28,7 @@ function ReservarPageContent() {
   const searchParams = useSearchParams()
   const slug = params.slug as string
   const { user, isAuthenticated, loading: authLoading } = useAuth()
+  const { success, error: showError } = useToast()
 
   const [business, setBusiness] = useState<Business | null>(null)
   const [hours, setHours] = useState<BusinessHours[]>([])
@@ -145,7 +147,7 @@ function ReservarPageContent() {
 
       router.push('/mis-reservas?success=true')
     } catch (error: any) {
-      alert(error.message || 'Error al crear la reserva')
+      showError(error.message || 'Error al crear la reserva')
     } finally {
       setSubmitting(false)
     }

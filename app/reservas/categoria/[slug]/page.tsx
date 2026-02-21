@@ -77,10 +77,13 @@ export default async function CategoryPage({ params }: PageProps) {
                 <Card className="hover:shadow-xl transition-all duration-200 cursor-pointer h-full border-0 shadow-lg flex flex-col overflow-hidden group">
                   <div className="h-48 bg-gray-200 relative overflow-hidden">
                     {business.logo ? (
-                      <img
+                      <Image
                         src={business.logo}
                         alt={business.name}
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                        fill
+                        sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw"
+                        className="object-cover group-hover:scale-105 transition-transform duration-500"
+                        quality={80}
                       />
                     ) : (
                       <div className="w-full h-full bg-gradient-to-br from-[#003366] to-[#00A896] flex items-center justify-center text-white text-4xl font-bold">

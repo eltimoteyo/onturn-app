@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input'
 import { User, Mail, Lock, Power, Building2, MapPin, Phone } from 'lucide-react'
 import Link from 'next/link'
 import type { Category } from '@/types/business'
+import { getErrorMessage } from '@/lib/utils/errorHandler'
 
 export default function RegistroNegocioPage() {
   const router = useRouter()
@@ -33,6 +34,7 @@ export default function RegistroNegocioPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState(false)
+  const [userExists, setUserExists] = useState(false) // Nuevo estado para usuario existente
 
   useEffect(() => {
     loadCategories()
@@ -43,48 +45,209 @@ export default function RegistroNegocioPage() {
       const data = await getAllCategories()
       setCategories(data || [])
     } catch (error) {
-      console.error('Error al cargar categorías:', error)
+      const errorMessage = getErrorMessage(error, 'LOAD_CATEGORIES')
+      console.error('[REGISTRO] Error al cargar categorías:', errorMessage)
     }
   }
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault()
+    
+    // Prevenir propagación de eventos
+    e.stopPropagation()
+    
+    // Reset de estados
     setLoading(true)
     setError('')
     setSuccess(false)
+    setUserExists(false)
 
+    // Envolver TODO en try-catch super defensivo
     try {
-      // 1. Crear usuario en auth
-      const { data: authData, error: authError } = await supabase.auth.signUp({
-        email,
-        password,
-      })
+      console.log('[REGISTRO] Iniciando registro...', { email, passwordLength: password.length })
 
-      if (authError) {
-        if (authError.message.includes('already registered') || authError.message.includes('User already registered')) {
-          setError('Este email ya está registrado. Por favor inicia sesión en su lugar.')
-          setTimeout(() => {
-            router.push('/admin/login')
-          }, 2000)
-          return
-        }
-        throw authError
+      // Validaciones básicas antes de intentar registro
+      if (!email || !email.includes('@')) {
+        setError('❌ Por favor ingresa un email válido')
+        setLoading(false)
+        return
       }
 
-      if (!authData.user) throw new Error('Error al crear usuario')
+      if (password.length < 6) {
+        setError('🔑 La contraseña debe tener al menos 6 caracteres')
+        setLoading(false)
+        return
+      }
 
-      // 2. Crear perfil con rol customer (temporal, será business_owner cuando se apruebe)
-      const { error: profileError } = await supabase
-        .from('profiles')
-        .insert({
-          id: authData.user.id,
-          full_name: fullName,
-          role: 'customer', // Temporal, cambiará a business_owner cuando se apruebe
+      if (!fullName || fullName.trim().length < 3) {
+        setError('👤 Por favor ingresa tu nombre completo')
+        setLoading(false)
+        return
+      }
+
+      if (!businessName || businessName.trim().length < 3) {
+        setError('🏢 Por favor ingresa el nombre de tu negocio')
+        setLoading(false)
+        return
+      }
+      
+      // 1. Crear usuario en auth (Supabase envía email de confirmación automáticamente)
+      let authData, authError
+      
+      try {
+        const response = await supabase.auth.signUp({
+          email,
+          password,
+          options: {
+            emailRedirectTo: `${window.location.origin}/admin/dashboard`,
+            data: {
+              full_name: fullName,
+              role: 'business_owner',
+            }
+          }
         })
+        authData = response.data
+        authError = response.error
+      } catch (signUpException: any) {
+        console.error('[REGISTRO] Excepción en signUp:', signUpException)
+        setError('Error de conexión al registrarse. Por favor intenta nuevamente.')
+        setLoading(false)
+        return
+      }
 
-      if (profileError) throw profileError
+      console.log('[REGISTRO] Respuesta de signUp:', { 
+        hasUser: !!authData?.user, 
+        errorExists: !!authError,
+        errorMessage: authError?.message,
+        errorStatus: authError?.status
+      })
 
-      // 3. Crear solicitud de registro de tenant
+      // CRÍTICO: Si hay error, manejarlo ANTES de continuar
+      if (authError) {
+        console.error('[REGISTRO] Error en signUp:', authError)
+        
+        // Usuario ya existe - Supabase puede devolver esto de varias formas
+        const errorMsg = (authError.message || '').toLowerCase()
+        const errorCode = authError.status
+        
+        // Error 422: Usually means user already exists or validation failed
+        if (errorCode === 422 || 
+            errorMsg.includes('already') || 
+            errorMsg.includes('registered') ||
+            errorMsg.includes('user already exists') ||
+            errorMsg.includes('duplicate') ||
+            errorMsg.includes('email address already')) {
+          console.log('[REGISTRO] Usuario ya existe detectado')
+          
+          // Batch state updates to avoid multiple re-renders
+          setTimeout(() => {
+            setUserExists(true)
+            setError('⚠️ Este email ya está registrado en nuestra plataforma.')
+            setLoading(false)
+          }, 0)
+          
+          return
+        }
+        
+        // Email inválido
+        if (errorMsg.includes('invalid') || errorMsg.includes('email format')) {
+          setError('❌ El email ingresado no es válido. Por favor verifica el formato.')
+          setLoading(false)
+          return
+        }
+        
+        // Contraseña débil
+        if (errorMsg.includes('password') || errorMsg.includes('weak') || errorMsg.includes('strong')) {
+          setError('🔑 La contraseña debe tener al menos 6 caracteres.')
+          setLoading(false)
+          return
+        }
+        
+        // Sign ups deshabilitados
+        if (errorMsg.includes('signup') || errorMsg.includes('disabled')) {
+          setError('⛔ Los registros están temporalmente deshabilitados. Contacta a soporte.')
+          setLoading(false)
+          return
+        }
+        
+        // Error genérico con mensaje completo de Supabase para debugging
+        console.error('[REGISTRO] Error completo:', {
+          message: authError.message,
+          status: authError.status,
+          name: authError.name,
+          code: (authError as any).code
+        })
+        
+        setError(`Error: ${authError.message || 'Error desconocido'}. Si el problema persiste, contacta a soporte.`)
+        setLoading(false)
+        return
+      }
+
+      // CRÍTICO: Verificar que tenemos un usuario válido
+      if (!authData || !authData.user) {
+        console.error('[REGISTRO] No se recibió usuario en la respuesta')
+        setError('Error: No se pudo crear el usuario. Por favor intenta nuevamente.')
+        setLoading(false)
+        return
+      }
+
+      console.log('[REGISTRO] Usuario creado:', authData.user.id)
+
+      // 2. Esperar a que el trigger de base de datos cree el perfil automáticamente
+      // El trigger on_auth_user_created crea el perfil inmediatamente
+      console.log('[REGISTRO] Esperando a que el trigger cree el perfil...')
+      await new Promise(resolve => setTimeout(resolve, 500))
+
+      // 3. Generar slug único para el negocio
+      const baseSlug = businessName
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-|-$/g, '')
+      
+      const timestamp = Date.now()
+      const slug = `${baseSlug}-${timestamp.toString().slice(-6)}`
+
+      // 4. Crear negocio INMEDIATAMENTE (con acceso limitado hasta confirmación de email)
+      console.log('[REGISTRO] Intentando crear negocio...')
+      const { data: businessData, error: businessError } = await supabase
+        .from('businesses')
+        .insert({
+          owner_id: authData.user.id,
+          name: businessName,
+          slug: slug,
+          description: businessDescription,
+          category_id: businessCategoryId || null,
+          address: businessAddress,
+          city: businessCity,
+          state: businessState,
+          phone: businessPhone,
+          email: businessEmail || email,
+          auto_confirm: false,
+          is_active: true,
+          // Sistema de aprobación
+          approval_status: 'pending',
+          is_publicly_visible: false,
+          can_receive_bookings: false, // Se activa al confirmar email
+          // Plan gratuito inicial
+          plan_type: 'free',
+          max_specialists: 1,
+          max_receptionists: 0,
+          max_users: 1,
+        })
+        .select()
+        .single()
+
+      if (businessError) {
+        console.error('[REGISTRO] Error al crear negocio:', businessError)
+        setError(`Error al crear negocio: ${businessError.message}`)
+        setLoading(false)
+        return
+      }
+
+      console.log('[REGISTRO] Negocio creado exitosamente:', businessData.id)
+
+      // 5. Crear solicitud de registro para que el admin la revise
+      console.log('[REGISTRO] Creando solicitud de registro...')
       const { error: requestError } = await supabase
         .from('tenant_registration_requests')
         .insert({
@@ -102,19 +265,52 @@ export default function RegistroNegocioPage() {
           status: 'pending',
         })
 
-      if (requestError) throw requestError
+      if (requestError) {
+        console.error('[REGISTRO] Error al crear solicitud (no crítico):', requestError)
+        // No bloquear registro si falla la solicitud  
+      } else {
+        console.log('[REGISTRO] Solicitud creada exitosamente')
+      }
 
+      console.log('[REGISTRO] ✅ Registro completado exitosamente')
+
+      // 6. NO cerrar sesión → Usuario queda logueado y va directo al dashboard
       setSuccess(true)
       setLoading(false)
 
-      // Mostrar mensaje de éxito y redirigir después de 3 segundos
+      // Mostrar mensaje de éxito breve y redirigir al dashboard
       setTimeout(() => {
-        router.push('/admin/login')
-      }, 3000)
+        router.push('/admin/dashboard')
+      }, 2000)
     } catch (err: any) {
-      console.error('Error en registro:', err)
-      setError(err.message || 'Error al registrarse')
+      // CAPTURA ABSOLUTA de cualquier error
+      console.error('[REGISTRO] Error CATCH global:', err)
+      console.error('[REGISTRO] Stack:', err?.stack)
+      
+      // Determinar mensaje apropiado
+      let errorMessage = 'Error inesperado al registrarse.'
+      
+      if (err?.message) {
+        // Si el error menciona "duplicate" o "already", es usuario existente
+        const errMsg = err.message.toLowerCase()
+        if (errMsg.includes('duplicate') || 
+            errMsg.includes('already') || 
+            errMsg.includes('unique')) {
+          errorMessage = '⚠️ Este email ya está registrado en nuestra plataforma.'
+          setUserExists(true)
+        } else {
+          errorMessage = `Error: ${err.message}`
+        }
+      }
+      
+      setError(errorMessage)
       setLoading(false)
+      setSuccess(false)
+    } finally {
+      // Asegurar que siempre se limpia el estado de loading
+      if (loading) {
+        console.log('[REGISTRO] Limpiando estado de loading en finally')
+      }
     }
   }
 
@@ -134,14 +330,65 @@ export default function RegistroNegocioPage() {
         </div>
 
         {success && (
-          <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-xl text-sm mb-4">
-            <p className="font-bold">¡Solicitud enviada exitosamente!</p>
-            <p className="text-xs mt-1">Tu solicitud será revisada por un administrador. Te notificaremos cuando sea aprobada.</p>
+          <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-xl text-sm mb-4 space-y-2">
+            <p className="font-bold flex items-center gap-2">
+              <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd"/>
+              </svg>
+              ✅ ¡Cuenta creada! Accediendo al dashboard...
+            </p>
+            <div className="text-xs space-y-1 pl-7">
+              <p>🎉 <strong>Ya puedes empezar a configurar tu negocio</strong></p>
+              <p>📧 Revisa tu email y confirma para activar las reservas</p>
+              <p className="text-green-600 font-semibold mt-2">Redirigiendo...</p>
+            </div>
           </div>
         )}
 
         <form onSubmit={handleRegister} className="space-y-4">
-          {error && (
+          {/* Banner especial cuando el usuario ya existe */}
+          {userExists && (
+            <div className="bg-orange-50 border-2 border-orange-300 text-orange-900 px-5 py-4 rounded-xl text-sm space-y-3">
+              <p className="font-bold flex items-center gap-2 text-base">
+                <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd"/>
+                </svg>
+                ⚠️ Este email ya está registrado
+              </p>
+              <div className="space-y-2 pl-8 text-sm">
+                <p>El email <strong>{email}</strong> ya tiene una cuenta en OnTurn.</p>
+                <p className="font-semibold">¿Qué puedes hacer?</p>
+                <div className="flex flex-col gap-2 mt-3">
+                  <Link 
+                    href="/admin/login" 
+                    className="bg-[#003366] text-white px-4 py-2 rounded-lg hover:bg-[#004488] transition-colors text-center font-medium"
+                  >
+                    🔐 Iniciar Sesión
+                  </Link>
+                  <Link 
+                    href="/admin/login?forgot=true" 
+                    className="bg-orange-200 text-orange-900 px-4 py-2 rounded-lg hover:bg-orange-300 transition-colors text-center font-medium"
+                  >
+                    🔑 ¿Olvidaste tu contraseña?
+                  </Link>
+                  <button 
+                    type="button"
+                    onClick={() => {
+                      setUserExists(false)
+                      setError('')
+                      setEmail('')
+                    }}
+                    className="bg-gray-100 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-200 transition-colors text-center font-medium"
+                  >
+                    📧 Usar otro email
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Banner de error general */}
+          {error && !userExists && (
             <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl text-sm">
               {error}
             </div>

@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import Image from 'next/image'
 import { Logo } from '@/components/shared/Logo'
 import { Facebook, Instagram, Twitter, Linkedin, Mail, Phone } from 'lucide-react'
 
@@ -88,7 +89,13 @@ export function Footer() {
                                 rel="noopener noreferrer"
                                 className="hover:opacity-80 transition-opacity"
                             >
-                                <img src="/logo-createam.svg" alt="Createam" className="h-6 w-auto" />
+                                <Image 
+                                    src="/logo-createam.svg" 
+                                    alt="Createam" 
+                                    width={120} 
+                                    height={24}
+                                    className="h-6 w-auto"
+                                />
                             </a>
                         </div>
 

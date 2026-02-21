@@ -1,35 +1,44 @@
 'use client'
 
 import React, { Suspense } from 'react'
-import { useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
+import { useForm } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
 import { useAuth } from '@/hooks/useAuth'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { loginSchema, type LoginFormData } from '@/lib/validations/schemas'
 import Link from 'next/link'
 
 function LoginForm() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const { login } = useAuth()
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState('')
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
-
+  
   const redirectPath = searchParams.get('redirect') || '/reservas'
 
-  const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setLoading(true)
-    setError('')
+  const { 
+    register, 
+    handleSubmit, 
+    formState: { errors, isSubmitting },
+    setError: setFormError 
+  } = useForm<LoginFormData>({
+    resolver: zodResolver(loginSchema),
+    defaultValues: {
+      email: '',
+      password: '',
+    }
+  })
 
+  const onSubmit = async (data: LoginFormData) => {
     try {
-      await login(email, password, redirectPath)
+      await login(data.email, data.password, redirectPath)
     } catch (err: any) {
-      setError(err.message || 'Error al iniciar sesión')
-      setLoading(false)
+      setFormError('root', { 
+        message: err.message || 'Error al iniciar sesión' 
+      })
     }
   }
 
@@ -43,26 +52,28 @@ function LoginForm() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleLogin} className="space-y-4">
-            {error && (
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+            {errors.root && (
               <div className="bg-red-50 text-red-500 text-sm p-3 rounded-md">
-                {error}
+                {errors.root.message}
               </div>
             )}
             <div className="space-y-2">
-              <label htmlFor="email" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">Correo electrónico</label>
+              <Label htmlFor="email">Correo electrónico</Label>
               <Input
                 id="email"
                 type="email"
                 placeholder="nombre@ejemplo.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
+                {...register('email')}
+                className={errors.email ? 'border-red-500' : ''}
               />
+              {errors.email && (
+                <p className="text-sm text-red-500">{errors.email.message}</p>
+              )}
             </div>
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <label htmlFor="password" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">Contraseña</label>
+                <Label htmlFor="password">Contraseña</Label>
                 <Link
                   href="/recuperar-password"
                   className="text-sm font-medium text-primary hover:underline"
@@ -73,13 +84,15 @@ function LoginForm() {
               <Input
                 id="password"
                 type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
+                {...register('password')}
+                className={errors.password ? 'border-red-500' : ''}
               />
+              {errors.password && (
+                <p className="text-sm text-red-500">{errors.password.message}</p>
+              )}
             </div>
-            <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? 'Iniciando sesión...' : 'Iniciar sesión'}
+            <Button type="submit" className="w-full" disabled={isSubmitting}>
+              {isSubmitting ? 'Iniciando sesión...' : 'Iniciar sesión'}
             </Button>
             <div className="text-center text-sm">
               ¿No tienes una cuenta?{' '}
