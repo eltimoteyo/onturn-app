@@ -14,8 +14,8 @@ const envSchema = z.object({
     message: 'NEXT_PUBLIC_SUPABASE_ANON_KEY es requerida'
   }),
   
-  // Site URL (opcional, con default)
-  NEXT_PUBLIC_SITE_URL: z.string().url().optional().default('http://localhost:3000'),
+  // Site URL (opcional, con default) - permitir vacío o undefined
+  NEXT_PUBLIC_SITE_URL: z.string().url().or(z.literal('')).optional(),
   
   // Node environment
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
@@ -45,14 +45,20 @@ function validateEnv() {
   }
   
   try {
+    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL
+    
     const parsed = envSchema.parse({
       NEXT_PUBLIC_SUPABASE_URL: supabaseUrl,
       NEXT_PUBLIC_SUPABASE_ANON_KEY: supabaseKey,
-      NEXT_PUBLIC_SITE_URL: process.env.NEXT_PUBLIC_SITE_URL,
+      NEXT_PUBLIC_SITE_URL: siteUrl || undefined,
       NODE_ENV: process.env.NODE_ENV,
     })
     
-    return parsed
+    return {
+      ...parsed,
+      // Proveer default para SITE_URL si no está definido
+      NEXT_PUBLIC_SITE_URL: parsed.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'
+    }
   } catch (error) {
     console.error('❌ Variables de entorno inválidas:', error)
     throw new Error('Variables de entorno faltantes o inválidas')
